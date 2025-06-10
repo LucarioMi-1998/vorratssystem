@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+
+<html lang="de">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vorratssystem</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    .expired { color: red; font-weight: bold; }
+    th.sortable:hover { cursor: pointer; text-decoration: underline; }
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+    .dark body { background-color: #1a1a1a; color: white; }
+    .dark .bg-white { background-color: #333 !important; color: white; }
+    .dark .bg-gray-100 { background-color: #555 !important; color: white; }
+    .dark input, .dark button { background-color: #444 !important; color: white !important; }
+    .dark .expired { color: #ff4d4d; }
+    .menge-display:hover { cursor: pointer; text-decoration: underline; }
+    .dark button.text-3xl { background-color: transparent !important; }
+
+#darkIcon { color: white; font-size: 1.2rem; }</style>
+</head>
+<body class="bg-[#4B753E] min-h-screen flex flex-col items-center justify-start py-10 text-white transition-colors duration-300">
+<div class="fixed inset-0 flex items-center justify-center z-50 hidden" id="confirmation">
+<div class="bg-green-600 text-white text-xl font-bold px-6 py-4 rounded-lg shadow-lg animate-fade-in">
+    ✔️ Artikel wurde erfolgreich hinzugefügt!
+  </div>
+</div>
+<style>
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+</style>
+
+<div class="fixed top-20 w-full flex justify-center z-50 hidden" id="confirmation">
+<div class="text-green-500 font-bold text-lg bg-white px-4 py-2 rounded shadow border border-green-300">
+    ✔️ Artikel wurde erfolgreich hinzugefügt!
+  </div>
+</div>
+
+<div class="fixed top-20 w-full flex justify-center z-50">
+<div class="text-green-400 font-bold text-lg bg-white px-4 py-2 rounded shadow hidden transition-opacity duration-500" id="confirmation">
+    ✔️ Artikel hinzugefügt
+  </div>
+</div>
+
+<div class="absolute top-4 right-4">
+<button class="p-2 rounded-full bg-transparent" id="darkModeToggle" onclick="toggleDarkMode()"><span id="darkIcon">☀️</span></button>
+</div>
+<div class="flex gap-4 mb-6 w-full max-w-3xl justify-center">
+<h1 class="text-white text-4xl font-bold text-center scale-[1.5] w-full text-6xl text-center scale-[1.5] w-full">VORRATSSYSTEM</h1>
+</div>
+<div class="flex gap-4 mb-6 w-full max-w-3xl justify-center">
+<input class="px-4 py-2 rounded-full text-black flex-1" id="artikel" placeholder="Artikel"/>
+<input class="px-4 py-2 rounded-full text-black w-32" id="menge" min="1" oninput="validateMenge(this)" placeholder="Menge (z. B. 250)" type="number"/>
+<input class="px-4 py-2 rounded-full text-black w-48" id="mhd" type="date"/>
+<button class="text-white text-3xl" onclick="addItem()">+</button>
+</div>
+<div class="w-full max-w-3xl flex justify-center">
+<div class="text-green-400 font-semibold mt-2 hidden transition-opacity duration-500" id="confirmation">✔️ Artikel hinzugefügt</div>
+</div>
+
+<div class="text-green-400 font-semibold mt-2 hidden transition-opacity duration-500" id="confirmation">✔️ Artikel hinzugefügt</div>
+
+<div class="flex gap-2 mb-6 w-full max-w-3xl justify-center">
+<input class="px-4 py-2 rounded-full text-black flex-1" id="suche" onkeydown="handleSearch(event)" placeholder="Artikel suchen..."/>
+<button class="hidden px-4 py-2 rounded-full bg-red-500 text-white" id="clearSearch" onclick="clearSearch()">✖</button>
+</div>
+<div class="bg-white rounded-xl shadow-md p-4 w-full max-w-3xl text-black">
+<table class="w-full text-center">
+<thead class="bg-gray-100">
+<tr>
+<th class="sortable" onclick="sortTable('artikel')">Artikel</th>
+<th class="sortable" onclick="sortTable('menge')">Menge</th>
+<th class="sortable" onclick="sortTable('hinzugefuegt')">Hinzugefügt am</th>
+<th class="sortable" onclick="sortTable('mhd')">MHD</th>
+<th></th>
+</tr>
+</thead>
+<tbody id="tabelle"></tbody>
+</table>
+</div>
+<script>
+    let daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+    let sortKey = '', sortAsc = true;
+
+    function formatDate(dateStr) {
+      return new Date(dateStr).toLocaleDateString('de-DE');
+    }
+
+    function render() {
+      const tbody = document.getElementById('tabelle');
+      tbody.innerHTML = '';
+      daten.forEach((eintrag, index) => {
+        const mhd = new Date(eintrag.mhd);
+        const heute = new Date();
+        const istAbgelaufen = mhd < heute;
+        const mengeValue = parseInt(eintrag.menge);
+        const mengeOptions = Array.from({length: 500}, (_, i) => (i + 1) * 10).filter(v => v <= 5000);
+
+        tbody.innerHTML += `
+          <tr>
+            <td>${eintrag.artikel}</td>
+            <td>
+              <span class="menge-display" onclick="toggleMengeSelect(${index})" id="menge-label-${index}">${mengeValue} g</span>
+              <select id="menge-select-${index}" class="hidden px-2 py-1 rounded mt-1" onchange="updateMenge(${index}, this.value)" onblur="hideMengeSelect(${index})">
+                ${mengeOptions.map(val => `<option value="${val}" ${val === mengeValue ? 'selected' : ''}>${val} g</option>`).join('')}
+              </select>
+            </td>
+            <td>${formatDate(eintrag.hinzugefuegt)}</td>
+            <td class="${istAbgelaufen ? 'expired' : ''}">${formatDate(eintrag.mhd)}</td>
+            <td><button onclick="deleteItem(${index})">🗑️</button></td>
+          </tr>
+        `;
+      });
+    }
+
+    function toggleMengeSelect(index) {
+      document.getElementById(`menge-label-${index}`).style.display = 'none';
+      const select = document.getElementById(`menge-select-${index}`);
+      select.classList.remove('hidden');
+      select.focus();
+    }
+
+    function hideMengeSelect(index) {
+      document.getElementById(`menge-label-${index}`).style.display = '';
+      document.getElementById(`menge-select-${index}`).classList.add('hidden');
+    }
+
+    function addItem() {
+      const artikel = document.getElementById('artikel').value;
+      const menge = document.getElementById('menge').value;
+      const mhd = document.getElementById('mhd').value;
+      if (!artikel || !menge || !mhd || isNaN(menge) || menge <= 0) {
+        alert("Bitte gültige Daten eingeben – besonders bei der Menge nur Zahlen!");
+        return;
+      }
+      daten.push({ artikel, menge: menge + ' g', hinzugefuegt: new Date().toISOString(), mhd });
+      localStorage.setItem('vorrat', JSON.stringify(daten));
+      
+    function handleSearch(event) {
+      if (event.key === 'Enter') {
+        const query = document.getElementById('suche').value.toLowerCase();
+        daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+        daten = daten.filter(e => e.artikel.toLowerCase().includes(query));
+        document.getElementById('clearSearch').classList.remove('hidden');
+        
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+      }
+    }
+
+    function clearSearch() {
+      document.getElementById('suche').value = '';
+      daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+      document.getElementById('clearSearch').classList.add('hidden');
+      
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+    }
+
+
+
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+    }
+
+    function updateMenge(index, neueMenge) {
+      daten[index].menge = neueMenge + ' g';
+      localStorage.setItem('vorrat', JSON.stringify(daten));
+      
+    function handleSearch(event) {
+      if (event.key === 'Enter') {
+        const query = document.getElementById('suche').value.toLowerCase();
+        daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+        daten = daten.filter(e => e.artikel.toLowerCase().includes(query));
+        document.getElementById('clearSearch').classList.remove('hidden');
+        
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+      }
+    }
+
+    function clearSearch() {
+      document.getElementById('suche').value = '';
+      daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+      document.getElementById('clearSearch').classList.add('hidden');
+      
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+    }
+
+
+
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+    }
+
+    function validateMenge(input) {
+      if (input.value !== '' && isNaN(input.value)) {
+        alert("Bitte nur Zahlen für die Menge eingeben!");
+        input.value = '';
+      }
+    }
+
+    function deleteItem(index) {
+      daten.splice(index, 1);
+      localStorage.setItem('vorrat', JSON.stringify(daten));
+      
+    function handleSearch(event) {
+      if (event.key === 'Enter') {
+        const query = document.getElementById('suche').value.toLowerCase();
+        daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+        daten = daten.filter(e => e.artikel.toLowerCase().includes(query));
+        document.getElementById('clearSearch').classList.remove('hidden');
+        
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+      }
+    }
+
+    function clearSearch() {
+      document.getElementById('suche').value = '';
+      daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+      document.getElementById('clearSearch').classList.add('hidden');
+      
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+    }
+
+
+
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+    }
+
+    function sortTable(key) {
+      sortAsc = key === sortKey ? !sortAsc : true;
+      sortKey = key;
+      daten.sort((a, b) => {
+        if (key === 'hinzugefuegt' || key === 'mhd') {
+          return sortAsc ? new Date(a[key]) - new Date(b[key]) : new Date(b[key]) - new Date(a[key]);
+        } else {
+          return sortAsc ? a[key].localeCompare(b[key]) : b[key].localeCompare(a[key]);
+        }
+      });
+      
+    function handleSearch(event) {
+      if (event.key === 'Enter') {
+        const query = document.getElementById('suche').value.toLowerCase();
+        daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+        daten = daten.filter(e => e.artikel.toLowerCase().includes(query));
+        document.getElementById('clearSearch').classList.remove('hidden');
+        
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+      }
+    }
+
+    function clearSearch() {
+      document.getElementById('suche').value = '';
+      daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+      document.getElementById('clearSearch').classList.add('hidden');
+      
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+    }
+
+
+
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+    }
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+    }
+
+    
+    function handleSearch(event) {
+      if (event.key === 'Enter') {
+        const query = document.getElementById('suche').value.toLowerCase();
+        daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+        daten = daten.filter(e => e.artikel.toLowerCase().includes(query));
+        document.getElementById('clearSearch').classList.remove('hidden');
+        
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+      }
+    }
+
+    function clearSearch() {
+      document.getElementById('suche').value = '';
+      daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+      document.getElementById('clearSearch').classList.add('hidden');
+      
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+    }
+
+
+
+    function toggleDarkMode() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      const icon = document.getElementById('darkIcon');
+      icon.textContent = isDark ? '🌙' : '☀️';
+    }
+
+    // Set initial icon on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const icon = document.getElementById('darkIcon');
+      if (document.documentElement.classList.contains('dark')) {
+        icon.textContent = '🌙';
+      } else {
+        icon.textContent = '☀️';
+      }
+    });
+
+
+render();
+  
+
+
+function pruefeAutoExport() {
+  const heute = new Date().toISOString().split('T')[0];
+  const letzterExport = localStorage.getItem('letzterExport');
+  if (letzterExport !== heute) {
+    exportiereDaten(heute);
+    localStorage.setItem('letzterExport', heute);
+  }
+}
+
+function exportiereDaten(datum) {
+  const daten = localStorage.getItem('vorrat');
+  const blob = new Blob([daten], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `vorrat_backup_${datum}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const icon = document.getElementById('darkIcon');
+  if (document.documentElement.classList.contains('dark')) {
+    icon.textContent = '🌙';
+  } else {
+    icon.textContent = '☀️';
+  }
+  pruefeAutoExport();
+});
+</script>
+
+
+
+<div class="fixed bottom-4 right-4">
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black dark:bg-white dark:text-black shadow hover:bg-gray-200 transition text-xl" onclick="exportiereDaten(new Date().toISOString().split('T')[0])">
+    📤
+  </button>
+</div>
+</body>
+</html>

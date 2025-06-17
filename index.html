@@ -28,10 +28,19 @@
 #darkIcon { color: white; font-size: 1.2rem; }</style>
 
 
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import {
+    getFirestore,
+    collection,
+    addDoc,
+    getDocs,
+    deleteDoc,
+    doc,
+    updateDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyB2r_5xgHJtzL1GB9IJ1RTG356byZiRGr4",
@@ -47,7 +56,100 @@
   const analytics = getAnalytics(app);
   const db = getFirestore(app);
 
+  let daten = [];
+
+  async function fetchData() {
+    daten = [];
+    const querySnapshot = await getDocs(collection(db, "vorrat"));
+    querySnapshot.forEach(docSnap => {
+      daten.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    render();
+  }
+
+  async function addItem() {
+    const artikel = document.getElementById("artikel").value;
+    const menge = document.getElementById("menge").value;
+    const mhd = document.getElementById("mhd").value;
+    if (!artikel || !menge || !mhd || isNaN(menge) || menge <= 0) {
+      alert("Bitte gültige Daten eingeben – besonders bei der Menge nur Zahlen!");
+      return;
+    }
+    await addDoc(collection(db, "vorrat"), {
+      artikel,
+      menge: menge + " g",
+      hinzugefuegt: new Date().toISOString(),
+      mhd
+    });
+    fetchData();
+  }
+
+  async function deleteItem(id) {
+    await deleteDoc(doc(db, "vorrat", id));
+    fetchData();
+  }
+
+  async function updateMenge(id, neueMenge) {
+    await updateDoc(doc(db, "vorrat", id), { menge: neueMenge + " g" });
+    fetchData();
+  }
+
+  function formatDate(dateStr) {
+    return new Date(dateStr).toLocaleDateString("de-DE");
+  }
+
+  function render() {
+    const tbody = document.getElementById("tabelle");
+    tbody.innerHTML = "";
+    daten.forEach((eintrag, index) => {
+      const mhd = new Date(eintrag.mhd);
+      const heute = new Date();
+      const istAbgelaufen = mhd < heute;
+      const mengeValue = parseInt(eintrag.menge);
+      const mengeOptions = Array.from({ length: 500 }, (_, i) => (i + 1) * 10).filter(v => v <= 5000);
+
+      tbody.innerHTML += `
+        <tr>
+          <td>${eintrag.artikel}</td>
+          <td>
+            <span class="menge-display" onclick="toggleMengeSelect(${index})" id="menge-label-${index}">${mengeValue} g</span>
+            <select id="menge-select-${index}" class="hidden px-2 py-1 rounded mt-1"
+              onchange="updateMengeWrapper('${eintrag.id}', this.value)"
+              onblur="hideMengeSelect(${index})">
+              ${mengeOptions.map(val => `<option value="${val}" ${val === mengeValue ? 'selected' : ''}>${val} g</option>`).join('')}
+            </select>
+          </td>
+          <td>${formatDate(eintrag.hinzugefuegt)}</td>
+          <td class="${istAbgelaufen ? 'expired' : ''}">${formatDate(eintrag.mhd)}</td>
+          <td><button onclick="deleteItem('${eintrag.id}')">🗑️</button></td>
+        </tr>
+      `;
+    });
+  }
+
+  window.toggleMengeSelect = function(index) {
+    document.getElementById(`menge-label-${index}`).style.display = "none";
+    document.getElementById(`menge-select-${index}`).classList.remove("hidden");
+    document.getElementById(`menge-select-${index}`).focus();
+  };
+
+  window.hideMengeSelect = function(index) {
+    document.getElementById(`menge-label-${index}`).style.display = "";
+    document.getElementById(`menge-select-${index}`).classList.add("hidden");
+  };
+
+  window.updateMengeWrapper = function(id, neueMenge) {
+    updateMenge(id, neueMenge);
+  };
+
+  window.deleteItem = deleteItem;
+  window.addItem = addItem;
+
+  window.addEventListener("DOMContentLoaded", () => {
+    fetchData();
+  });
 </script>
+
 
 </head>
 <body class="bg-[#4B753E] min-h-screen flex flex-col items-center justify-start py-10 text-white transition-colors duration-300">

@@ -26,6 +26,29 @@
     .dark button.text-3xl { background-color: transparent !important; }
 
 #darkIcon { color: white; font-size: 1.2rem; }</style>
+
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB2r_5xgHJtzL1GB9IJ1RTG356byZiRGr4",
+    authDomain: "vorratssystem.firebaseapp.com",
+    projectId: "vorratssystem",
+    storageBucket: "vorratssystem.firebasestorage.app",
+    messagingSenderId: "979465055930",
+    appId: "1:979465055930:web:74af667a86b58f89f71c83",
+    measurementId: "G-RDDTKVL3HE"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+
+</script>
+
 </head>
 <body class="bg-[#4B753E] min-h-screen flex flex-col items-center justify-start py-10 text-white transition-colors duration-300">
 <div class="fixed inset-0 flex items-center justify-center z-50 hidden" id="confirmation">
@@ -92,7 +115,7 @@
 </table>
 </div>
 <script>
-    let daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+    let daten = [];
     let sortKey = '', sortAsc = true;
 
     function formatDate(dateStr) {
@@ -138,7 +161,7 @@
       document.getElementById(`menge-select-${index}`).classList.add('hidden');
     }
 
-    function addItem() {
+    async function addItem() {
       const artikel = document.getElementById('artikel').value;
       const menge = document.getElementById('menge').value;
       const mhd = document.getElementById('mhd').value;
@@ -146,13 +169,19 @@
         alert("Bitte gültige Daten eingeben – besonders bei der Menge nur Zahlen!");
         return;
       }
-      daten.push({ artikel, menge: menge + ' g', hinzugefuegt: new Date().toISOString(), mhd });
-      localStorage.setItem('vorrat', JSON.stringify(daten));
+      await addDoc(collection(db, "vorrat"), {
+        artikel,
+        menge: menge + " g",
+        hinzugefuegt: new Date().toISOString(),
+        mhd
+      });
+      fetchData();
+      // Daten werden automatisch in Firestore gespeichert
       
     function handleSearch(event) {
       if (event.key === 'Enter') {
         const query = document.getElementById('suche').value.toLowerCase();
-        daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+        daten = // Daten werden aus Firestore geladen
         daten = daten.filter(e => e.artikel.toLowerCase().includes(query));
         document.getElementById('clearSearch').classList.remove('hidden');
         
@@ -180,7 +209,7 @@ render();
 
     function clearSearch() {
       document.getElementById('suche').value = '';
-      daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+      daten = // Daten werden aus Firestore geladen
       document.getElementById('clearSearch').classList.add('hidden');
       
     function toggleDarkMode() {
@@ -229,12 +258,12 @@ render();
 
     function updateMenge(index, neueMenge) {
       daten[index].menge = neueMenge + ' g';
-      localStorage.setItem('vorrat', JSON.stringify(daten));
+      // Daten werden automatisch in Firestore gespeichert
       
     function handleSearch(event) {
       if (event.key === 'Enter') {
         const query = document.getElementById('suche').value.toLowerCase();
-        daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+        daten = // Daten werden aus Firestore geladen
         daten = daten.filter(e => e.artikel.toLowerCase().includes(query));
         document.getElementById('clearSearch').classList.remove('hidden');
         
@@ -262,7 +291,7 @@ render();
 
     function clearSearch() {
       document.getElementById('suche').value = '';
-      daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+      daten = // Daten werden aus Firestore geladen
       document.getElementById('clearSearch').classList.add('hidden');
       
     function toggleDarkMode() {
@@ -318,12 +347,12 @@ render();
 
     function deleteItem(index) {
       daten.splice(index, 1);
-      localStorage.setItem('vorrat', JSON.stringify(daten));
+      // Daten werden automatisch in Firestore gespeichert
       
     function handleSearch(event) {
       if (event.key === 'Enter') {
         const query = document.getElementById('suche').value.toLowerCase();
-        daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+        daten = // Daten werden aus Firestore geladen
         daten = daten.filter(e => e.artikel.toLowerCase().includes(query));
         document.getElementById('clearSearch').classList.remove('hidden');
         
@@ -351,7 +380,7 @@ render();
 
     function clearSearch() {
       document.getElementById('suche').value = '';
-      daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+      daten = // Daten werden aus Firestore geladen
       document.getElementById('clearSearch').classList.add('hidden');
       
     function toggleDarkMode() {
@@ -412,7 +441,7 @@ render();
     function handleSearch(event) {
       if (event.key === 'Enter') {
         const query = document.getElementById('suche').value.toLowerCase();
-        daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+        daten = // Daten werden aus Firestore geladen
         daten = daten.filter(e => e.artikel.toLowerCase().includes(query));
         document.getElementById('clearSearch').classList.remove('hidden');
         
@@ -440,7 +469,7 @@ render();
 
     function clearSearch() {
       document.getElementById('suche').value = '';
-      daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+      daten = // Daten werden aus Firestore geladen
       document.getElementById('clearSearch').classList.add('hidden');
       
     function toggleDarkMode() {
@@ -495,7 +524,7 @@ render();
     function handleSearch(event) {
       if (event.key === 'Enter') {
         const query = document.getElementById('suche').value.toLowerCase();
-        daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+        daten = // Daten werden aus Firestore geladen
         daten = daten.filter(e => e.artikel.toLowerCase().includes(query));
         document.getElementById('clearSearch').classList.remove('hidden');
         
@@ -523,7 +552,7 @@ render();
 
     function clearSearch() {
       document.getElementById('suche').value = '';
-      daten = JSON.parse(localStorage.getItem('vorrat')) || [];
+      daten = // Daten werden aus Firestore geladen
       document.getElementById('clearSearch').classList.add('hidden');
       
     function toggleDarkMode() {

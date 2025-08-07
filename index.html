@@ -252,6 +252,93 @@
       opacity: 0.5;
     }
 
+    .add-form {
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+
+    .form-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .form-label {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #555;
+    }
+
+    .form-input, .form-select {
+      padding: 12px 15px;
+      border: 2px solid #e1e5e9;
+      border-radius: 12px;
+      font-size: 16px;
+      background: white;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-select {
+      cursor: pointer;
+    }
+
+    .form-submit {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      margin-top: 8px;
+    }
+
+    .form-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .form-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
     @media (max-width: 480px) {
       body {
         padding: 15px 5px;
@@ -286,6 +373,15 @@
       .item-name {
         font-size: 15px;
       }
+
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .add-form {
+        padding: 15px;
+      }
     }
   </style>
 </head>
@@ -299,6 +395,43 @@
       </div>
     </div>
 
+    <!-- Add Form -->
+    <div class="add-form">
+      <div class="form-title">
+        <span>➕</span>
+        <span>Neues Produkt hinzufügen</span>
+      </div>
+      <form id="addProductForm">
+        <div class="form-group full-width">
+          <label class="form-label">Artikelname</label>
+          <input type="text" class="form-input" id="productName" placeholder="z.B. Milch, Brot, Spülmittel..." required>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Gewicht/Menge</label>
+            <input type="text" class="form-input" id="productWeight" placeholder="z.B. 1L, 500g, 2 Stück" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kategorie</label>
+            <select class="form-select" id="productCategory" required>
+              <option value="">Kategorie wählen...</option>
+              <option value="Kühlschrank">🧊 Kühlschrank</option>
+              <option value="Vorrat">🏠 Vorrat</option>
+              <option value="Putzmittel">🧽 Putzmittel</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Mindesthaltbarkeitsdatum (optional)</label>
+          <input type="date" class="form-input" id="productMHD">
+        </div>
+
+        <button type="submit" class="form-submit">Produkt hinzufügen</button>
+      </form>
+    </div>
+
     <div class="categories" id="categoriesContainer">
       <div class="category" data-category="Kühlschrank">
         <div class="category-header">
@@ -309,7 +442,6 @@
           <span class="category-count">0</span>
         </div>
         <div class="category-content">
-          <button class="add-button">+ Produkt hinzufügen</button>
           <div class="items-list"></div>
         </div>
       </div>
@@ -323,7 +455,6 @@
           <span class="category-count">0</span>
         </div>
         <div class="category-content">
-          <button class="add-button">+ Produkt hinzufügen</button>
           <div class="items-list"></div>
         </div>
       </div>
@@ -337,7 +468,6 @@
           <span class="category-count">0</span>
         </div>
         <div class="category-content">
-          <button class="add-button">+ Produkt hinzufügen</button>
           <div class="items-list"></div>
         </div>
       </div>
@@ -386,12 +516,31 @@
       item.dataset.name = data.name.toLowerCase();
       
       const icon = categoryIcons[data.fach] || '📦';
+      
+      // Format MHD if available
+      let mhdDisplay = '';
+      if (data.mhd) {
+        const mhdDate = new Date(data.mhd);
+        const today = new Date();
+        const diffTime = mhdDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 0) {
+          mhdDisplay = `<span style="color: #f44336; font-weight: bold;">❌ Abgelaufen</span>`;
+        } else if (diffDays <= 3) {
+          mhdDisplay = `<span style="color: #ff9800; font-weight: bold;">⚠️ ${diffDays} Tag(e)</span>`;
+        } else {
+          mhdDisplay = `<span style="color: #4caf50;">✅ ${diffDays} Tag(e)</span>`;
+        }
+      }
+      
       item.innerHTML = `
         <div class="item-info">
           <span class="item-icon">${icon}</span>
           <div>
             <div class="item-name">${data.name}</div>
             <div class="item-amount">${data.menge}</div>
+            ${mhdDisplay ? `<div class="item-mhd">${mhdDisplay}</div>` : ''}
           </div>
         </div>
         <div class="item-actions">
@@ -407,22 +556,60 @@
         
         const newAmount = prompt("Menge:", data.menge);
         if (newAmount === null) return;
+        
+        const newMhd = prompt("MHD (YYYY-MM-DD) - leer lassen zum entfernen:", data.mhd || '');
+        if (newMhd === null) return;
 
         if (newName.trim() && newAmount.trim()) {
-          db.collection("produkte").doc(id).update({ 
+          const updateData = { 
             name: newName.trim(), 
-            menge: newAmount.trim() 
-          });
+            menge: newAmount.trim()
+          };
           
+          if (newMhd.trim()) {
+            updateData.mhd = newMhd.trim();
+          } else {
+            updateData.mhd = firebase.firestore.FieldValue.delete();
+          }
+          
+          db.collection("produkte").doc(id).update(updateData);
+          
+          // Update display
           item.querySelector('.item-name').textContent = newName.trim();
           item.querySelector('.item-amount').textContent = newAmount.trim();
           item.dataset.name = newName.toLowerCase();
+          
+          // Update MHD display
+          const existingMhd = item.querySelector('.item-mhd');
+          if (existingMhd) existingMhd.remove();
+          
+          if (newMhd.trim()) {
+            const mhdDate = new Date(newMhd.trim());
+            const today = new Date();
+            const diffTime = mhdDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            let mhdDisplay = '';
+            if (diffDays < 0) {
+              mhdDisplay = `<span style="color: #f44336; font-weight: bold;">❌ Abgelaufen</span>`;
+            } else if (diffDays <= 3) {
+              mhdDisplay = `<span style="color: #ff9800; font-weight: bold;">⚠️ ${diffDays} Tag(e)</span>`;
+            } else {
+              mhdDisplay = `<span style="color: #4caf50;">✅ ${diffDays} Tag(e)</span>`;
+            }
+            
+            const mhdDiv = document.createElement('div');
+            mhdDiv.className = 'item-mhd';
+            mhdDiv.innerHTML = mhdDisplay;
+            item.querySelector('.item-amount').parentNode.appendChild(mhdDiv);
+          }
           
           // Update allItems array
           const itemIndex = allItems.findIndex(item => item.id === id);
           if (itemIndex !== -1) {
             allItems[itemIndex].data.name = newName.trim();
             allItems[itemIndex].data.menge = newAmount.trim();
+            allItems[itemIndex].data.mhd = newMhd.trim() || null;
           }
         }
       });
@@ -594,6 +781,80 @@
             // Add to allItems array
             allItems.push({ id: docRef.id, data: data, element: item });
           });
+        });
+      });
+
+      // Add Product Form
+      const addForm = document.getElementById('addProductForm');
+      addForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const name = document.getElementById('productName').value.trim();
+        const weight = document.getElementById('productWeight').value.trim();
+        const category = document.getElementById('productCategory').value;
+        const mhd = document.getElementById('productMHD').value;
+        
+        if (!name || !weight || !category) {
+          alert('Bitte füllen Sie alle Pflichtfelder aus.');
+          return;
+        }
+        
+        const data = {
+          name: name,
+          menge: weight,
+          fach: category,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        if (mhd) {
+          data.mhd = mhd;
+        }
+        
+        // Show loading state
+        const submitBtn = addForm.querySelector('.form-submit');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Wird hinzugefügt...';
+        submitBtn.disabled = true;
+        
+        db.collection("produkte").add(data).then(docRef => {
+          const categoryEl = document.querySelector(`[data-category="${category}"]`);
+          const itemsList = categoryEl.querySelector('.items-list');
+          
+          // Remove empty state if it exists
+          const emptyState = itemsList.querySelector('.empty-state');
+          if (emptyState) {
+            emptyState.remove();
+          }
+          
+          const item = createItemElement(data, docRef.id);
+          itemsList.appendChild(item);
+          updateCategoryCount(category);
+          
+          // Add to allItems array
+          allItems.push({ id: docRef.id, data: data, element: item });
+          
+          // Reset form
+          addForm.reset();
+          
+          // Show success feedback
+          submitBtn.textContent = '✅ Hinzugefügt!';
+          setTimeout(() => {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+          }, 2000);
+          
+          // Auto-expand the category
+          const header = categoryEl.querySelector('.category-header');
+          const content = categoryEl.querySelector('.category-content');
+          if (!content.classList.contains('active')) {
+            header.classList.add('active');
+            content.classList.add('active');
+          }
+        }).catch(error => {
+          console.error('Error adding product:', error);
+          alert('Fehler beim Hinzufügen des Produkts. Bitte versuchen Sie es erneut.');
+          submitBtn.textContent = originalText;
+          submitBtn.disabled = false;
         });
       });
 

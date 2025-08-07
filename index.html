@@ -2,175 +2,351 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Kühlschrank App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vorrats App</title>
   <!-- Firebase Compat SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: radial-gradient(circle at center, #e0f7fa 0%, #b2ebf2 100%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
+    * {
       margin: 0;
-    }
-
-    h1 {
-      font-size: 32px;
-      font-weight: bold;
-      color: #004d40;
-      margin-bottom: 20px;
-      text-align: center;
-    }
-
-    .fridge {
-      display: flex;
-      width: 960px;
-      height: 580px;
-      background: #e4e7ea;
-      border: 8px solid #bbb;
-      border-radius: 20px;
-      box-shadow: 0 0 25px rgba(0,0,0,0.3);
-      overflow: hidden;
-      position: relative;
-    }
-
-    .fridge::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 50%;
-      width: 4px;
-      height: 100%;
-      background: #aaa;
-      transform: translateX(-50%);
-      z-index: 5;
-    }
-
-    .door, .main {
-      flex: 1;
-      padding: 16px;
+      padding: 0;
       box-sizing: border-box;
     }
 
-    .door {
-      background: linear-gradient(to bottom, #d3e3ef, #c1d6ea);
-      border-right: 2px solid #999;
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px 10px;
+      color: #333;
     }
 
-    .main {
-      background: linear-gradient(to bottom, #f9f9f9, #e9e9e9);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
     }
 
-    .compartment {
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      color: white;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .search-container {
       position: relative;
-      background: #fefefe;
-      border: 1px solid #ccc;
-      margin: 6px 0;
-      padding: 8px 12px 46px 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
-      transition: background 0.3s;
+      margin-bottom: 25px;
     }
 
-    .compartment:hover {
-      background: #ffffff;
+    .search-input {
+      width: 100%;
+      padding: 15px 50px 15px 20px;
+      border: none;
+      border-radius: 25px;
+      font-size: 16px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      outline: none;
+      transition: all 0.3s ease;
     }
 
-    .plus-btn {
+    .search-input:focus {
+      background: white;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    }
+
+    .search-icon {
       position: absolute;
-      bottom: 8px;
-      right: 8px;
-      background: #4caf50;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 20px;
+      color: #666;
+    }
+
+    .category {
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      margin-bottom: 15px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+
+    .category-header {
+      padding: 20px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255,255,255,0.8);
+      transition: all 0.3s ease;
+      user-select: none;
+    }
+
+    .category-header:hover {
+      background: rgba(255,255,255,1);
+    }
+
+    .category-header.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .category-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .category-icon {
+      font-size: 24px;
+    }
+
+    .category-count {
+      background: rgba(255,255,255,0.2);
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 14px;
+      font-weight: 500;
+      min-width: 30px;
+      text-align: center;
+    }
+
+    .category-header:not(.active) .category-count {
+      background: #667eea;
+      color: white;
+    }
+
+    .category-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .category-content.active {
+      max-height: 1000px;
+    }
+
+    .add-button {
+      margin: 15px 20px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
       color: white;
       border: none;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      font-size: 16px;
-      line-height: 24px;
-      text-align: center;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      z-index: 10;
-    }
-
-    .plus-btn:hover {
-      background: #2e7d32;
-    }
-
-    .counter {
-      position: absolute;
-      top: 6px;
-      right: 42px;
-      background: #1976d2;
-      color: white;
-      font-size: 12px;
-      padding: 2px 6px;
       border-radius: 12px;
-      z-index: 10;
-      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      width: calc(100% - 40px);
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
     }
 
-    .items {
-      display: none;
-      margin-top: 8px;
-      position: relative;
-      z-index: 1;
+    .add-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
     }
 
-    .items.active {
-      display: block;
+    .items-list {
+      padding: 0 20px 20px;
     }
 
     .item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 14px;
-      padding: 6px 8px;
-      background: #ffffff;
-      border-radius: 6px;
-      margin: 4px 0;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-      position: relative;
-      z-index: 1;
+      padding: 15px;
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      transition: all 0.3s ease;
     }
 
-    .item-icons {
+    .item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+    }
+
+    .item-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .item-name {
+      font-weight: 500;
+      font-size: 16px;
+    }
+
+    .item-amount {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .item-actions {
       display: flex;
       gap: 10px;
-      margin-left: 10px;
-      z-index: 1;
     }
 
-    .item-icons i {
+    .action-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
       cursor: pointer;
-      font-size: 16px;
+      padding: 8px;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .action-btn:hover {
+      background: rgba(0,0,0,0.05);
+      transform: scale(1.1);
+    }
+
+    .edit-btn:hover {
+      background: rgba(33, 150, 243, 0.1);
+    }
+
+    .delete-btn:hover {
+      background: rgba(244, 67, 54, 0.1);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px 20px;
+      color: #666;
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+
+    .no-results-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 15px 5px;
+      }
+
+      .header h1 {
+        font-size: 24px;
+      }
+
+      .search-input {
+        padding: 12px 45px 12px 18px;
+        font-size: 16px;
+      }
+
+      .category-header {
+        padding: 18px;
+      }
+
+      .category-title {
+        font-size: 16px;
+        gap: 10px;
+      }
+
+      .category-icon {
+        font-size: 22px;
+      }
+
+      .item {
+        padding: 12px;
+      }
+
+      .item-name {
+        font-size: 15px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>🧊 Kühlschrank</h1>
-  <div class="fridge">
-    <div class="door">
-      <div class="compartment" data-name="Sonstiges">❓ Sonstiges <span class="counter">0</span><button class="plus-btn">+</button><div class="items"></div></div>
-      <div class="compartment" data-name="Butter">🧈 Butter <span class="counter">0</span><button class="plus-btn">+</button><div class="items"></div></div>
-      <div class="compartment" data-name="Getränke">🧃 Getränke <span class="counter">0</span><button class="plus-btn">+</button><div class="items"></div></div>
+  <div class="container">
+    <div class="header">
+      <h1>📱 Vorrats Manager</h1>
+      <div class="search-container">
+        <input type="text" class="search-input" placeholder="Produkte suchen..." id="searchInput">
+        <span class="search-icon">🔍</span>
+      </div>
     </div>
-    <div class="main">
-      <div class="compartment" data-name="Aufstrich">🍯 Aufstrich <span class="counter">0</span><button class="plus-btn">+</button><div class="items"></div></div>
-      <div class="compartment" data-name="Soßen">🥫 Soßen <span class="counter">0</span><button class="plus-btn">+</button><div class="items"></div></div>
-      <div class="compartment" data-name="Käse">🧀 Käse <span class="counter">0</span><button class="plus-btn">+</button><div class="items"></div></div>
-      <div class="compartment" data-name="Fleisch">🥩 Fleisch <span class="counter">0</span><button class="plus-btn">+</button><div class="items"></div></div>
-      <div class="compartment" data-name="Gemüse">🥦 Gemüse <span class="counter">0</span><button class="plus-btn">+</button><div class="items"></div></div>
+
+    <div class="categories" id="categoriesContainer">
+      <div class="category" data-category="Kühlschrank">
+        <div class="category-header">
+          <div class="category-title">
+            <span class="category-icon">🧊</span>
+            <span>Kühlschrank</span>
+          </div>
+          <span class="category-count">0</span>
+        </div>
+        <div class="category-content">
+          <button class="add-button">+ Produkt hinzufügen</button>
+          <div class="items-list"></div>
+        </div>
+      </div>
+
+      <div class="category" data-category="Vorrat">
+        <div class="category-header">
+          <div class="category-title">
+            <span class="category-icon">🏠</span>
+            <span>Vorrat</span>
+          </div>
+          <span class="category-count">0</span>
+        </div>
+        <div class="category-content">
+          <button class="add-button">+ Produkt hinzufügen</button>
+          <div class="items-list"></div>
+        </div>
+      </div>
+
+      <div class="category" data-category="Putzmittel">
+        <div class="category-header">
+          <div class="category-title">
+            <span class="category-icon">🧽</span>
+            <span>Putzmittel</span>
+          </div>
+          <span class="category-count">0</span>
+        </div>
+        <div class="category-content">
+          <button class="add-button">+ Produkt hinzufügen</button>
+          <div class="items-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="no-results" id="noResults" style="display: none;">
+      <div class="no-results-icon">🔍</div>
+      <h3>Keine Ergebnisse gefunden</h3>
+      <p>Versuchen Sie einen anderen Suchbegriff</p>
     </div>
   </div>
 
@@ -188,78 +364,253 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    const iconMap = {
-      'Butter': '🧈',
-      'Getränke': '🧃',
-      'Aufstrich': '🍯',
-      'Soßen': '🥫',
-      'Käse': '🧀',
-      'Fleisch': '🥩',
-      'Gemüse': '🥦',
-      'Sonstiges': '❓'
+    const categoryIcons = {
+      'Kühlschrank': '🧊',
+      'Vorrat': '🏠',
+      'Putzmittel': '🧽'
     };
 
-    function updateCounter(comp) {
-      const count = comp.querySelectorAll('.item').length;
-      comp.querySelector('.counter').textContent = count;
+    let allItems = [];
+    let currentSearch = '';
+
+    function updateCategoryCount(categoryName) {
+      const category = document.querySelector(`[data-category="${categoryName}"]`);
+      const count = category.querySelectorAll('.item').length;
+      category.querySelector('.category-count').textContent = count;
     }
 
-    function createItemElement(data, id, comp) {
+    function createItemElement(data, id) {
       const item = document.createElement('div');
       item.className = 'item';
-      const icon = iconMap[data.fach] || '🧊';
+      item.dataset.id = id;
+      item.dataset.name = data.name.toLowerCase();
+      
+      const icon = categoryIcons[data.fach] || '📦';
       item.innerHTML = `
-        <span>${icon} ${data.name} (${data.menge})</span>
-        <div class="item-icons">
-          <i title="Menge ändern">✏️</i>
-          <i title="Löschen">🗑️</i>
+        <div class="item-info">
+          <span class="item-icon">${icon}</span>
+          <div>
+            <div class="item-name">${data.name}</div>
+            <div class="item-amount">${data.menge}</div>
+          </div>
+        </div>
+        <div class="item-actions">
+          <button class="action-btn edit-btn" title="Bearbeiten">✏️</button>
+          <button class="action-btn delete-btn" title="Löschen">🗑️</button>
         </div>
       `;
-      item.querySelector('[title="Menge ändern"]').addEventListener('click', () => {
-        const neueMenge = prompt("Neue Menge:", data.menge);
-        if (neueMenge) {
-          db.collection("produkte").doc(id).update({ menge: neueMenge });
-          item.querySelector('span').textContent = `${icon} ${data.name} (${neueMenge})`;
+
+      // Edit functionality
+      item.querySelector('.edit-btn').addEventListener('click', () => {
+        const newName = prompt("Produktname:", data.name);
+        if (newName === null) return;
+        
+        const newAmount = prompt("Menge:", data.menge);
+        if (newAmount === null) return;
+
+        if (newName.trim() && newAmount.trim()) {
+          db.collection("produkte").doc(id).update({ 
+            name: newName.trim(), 
+            menge: newAmount.trim() 
+          });
+          
+          item.querySelector('.item-name').textContent = newName.trim();
+          item.querySelector('.item-amount').textContent = newAmount.trim();
+          item.dataset.name = newName.toLowerCase();
+          
+          // Update allItems array
+          const itemIndex = allItems.findIndex(item => item.id === id);
+          if (itemIndex !== -1) {
+            allItems[itemIndex].data.name = newName.trim();
+            allItems[itemIndex].data.menge = newAmount.trim();
+          }
         }
       });
-      item.querySelector('[title="Löschen"]').addEventListener('click', () => {
-        db.collection("produkte").doc(id).delete();
-        item.remove();
-        updateCounter(comp);
+
+      // Delete functionality
+      item.querySelector('.delete-btn').addEventListener('click', () => {
+        if (confirm(`"${data.name}" wirklich löschen?`)) {
+          db.collection("produkte").doc(id).delete();
+          item.remove();
+          updateCategoryCount(data.fach);
+          
+          // Remove from allItems array
+          allItems = allItems.filter(item => item.id !== id);
+          
+          checkEmptyState(data.fach);
+        }
       });
-      comp.querySelector('.items').appendChild(item);
-      updateCounter(comp);
+
+      return item;
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      // Daten laden
+    function checkEmptyState(categoryName) {
+      const category = document.querySelector(`[data-category="${categoryName}"]`);
+      const itemsList = category.querySelector('.items-list');
+      const items = itemsList.querySelectorAll('.item');
+      
+      if (items.length === 0) {
+        itemsList.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">${categoryIcons[categoryName]}</div>
+            <p>Noch keine Produkte vorhanden</p>
+          </div>
+        `;
+      }
+    }
+
+    function filterItems() {
+      const searchTerm = currentSearch.toLowerCase();
+      const categoriesContainer = document.getElementById('categoriesContainer');
+      const noResults = document.getElementById('noResults');
+      let hasVisibleItems = false;
+
+      if (!searchTerm) {
+        // Show all items and categories
+        categoriesContainer.style.display = 'block';
+        noResults.style.display = 'none';
+        
+        document.querySelectorAll('.item').forEach(item => {
+          item.style.display = 'flex';
+        });
+        
+        document.querySelectorAll('.category').forEach(category => {
+          category.style.display = 'block';
+          checkEmptyState(category.dataset.category);
+        });
+        return;
+      }
+
+      // Filter items
+      document.querySelectorAll('.category').forEach(category => {
+        const items = category.querySelectorAll('.item');
+        let categoryHasVisibleItems = false;
+        
+        items.forEach(item => {
+          const itemName = item.dataset.name;
+          if (itemName.includes(searchTerm)) {
+            item.style.display = 'flex';
+            categoryHasVisibleItems = true;
+            hasVisibleItems = true;
+          } else {
+            item.style.display = 'none';
+          }
+        });
+        
+        // Show/hide category based on whether it has visible items
+        if (categoryHasVisibleItems) {
+          category.style.display = 'block';
+          // Auto-expand category if it has matching items
+          const header = category.querySelector('.category-header');
+          const content = category.querySelector('.category-content');
+          header.classList.add('active');
+          content.classList.add('active');
+        } else {
+          category.style.display = 'none';
+        }
+      });
+
+      // Show/hide no results message
+      if (!hasVisibleItems) {
+        categoriesContainer.style.display = 'none';
+        noResults.style.display = 'block';
+      } else {
+        categoriesContainer.style.display = 'block';
+        noResults.style.display = 'none';
+      }
+    }
+
+    // Initialize app
+    document.addEventListener('DOMContentLoaded', () => {
+      // Load data from Firebase
       db.collection("produkte").orderBy("timestamp").get().then(snapshot => {
         snapshot.forEach(doc => {
           const data = doc.data();
-          const comp = [...document.querySelectorAll('.compartment')].find(c => c.getAttribute('data-name') === data.fach);
-          if (comp) createItemElement(data, doc.id, comp);
+          const category = document.querySelector(`[data-category="${data.fach}"]`);
+          
+          if (category) {
+            const itemsList = category.querySelector('.items-list');
+            const item = createItemElement(data, doc.id);
+            itemsList.appendChild(item);
+            updateCategoryCount(data.fach);
+            
+            // Add to allItems array
+            allItems.push({ id: doc.id, data: data, element: item });
+          }
+        });
+
+        // Check empty states for all categories
+        Object.keys(categoryIcons).forEach(categoryName => {
+          checkEmptyState(categoryName);
         });
       });
 
-      // Buttons verknüpfen
-      document.querySelectorAll('.compartment').forEach(comp => {
-        const btn = comp.querySelector('.plus-btn');
-        const itemsBox = comp.querySelector('.items');
-        btn.addEventListener('click', (e) => {
+      // Category toggle functionality
+      document.querySelectorAll('.category-header').forEach(header => {
+        header.addEventListener('click', () => {
+          if (currentSearch) return; // Don't toggle during search
+          
+          const content = header.nextElementSibling;
+          const isActive = content.classList.contains('active');
+          
+          header.classList.toggle('active');
+          content.classList.toggle('active');
+        });
+      });
+
+      // Add button functionality
+      document.querySelectorAll('.add-button').forEach(button => {
+        button.addEventListener('click', (e) => {
           e.stopPropagation();
+          const category = button.closest('.category');
+          const categoryName = category.dataset.category;
+          
           const name = prompt("Produktname:");
-          const menge = prompt("Menge:");
-          if (name && menge) {
-            const fach = comp.getAttribute('data-name');
-            const data = { name, menge, fach, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
-            db.collection("produkte").add(data).then(docRef => {
-              createItemElement(data, docRef.id, comp);
-            });
-          }
+          if (!name || !name.trim()) return;
+          
+          const amount = prompt("Menge:");
+          if (!amount || !amount.trim()) return;
+
+          const data = {
+            name: name.trim(),
+            menge: amount.trim(),
+            fach: categoryName,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          };
+
+          db.collection("produkte").add(data).then(docRef => {
+            const itemsList = category.querySelector('.items-list');
+            
+            // Remove empty state if it exists
+            const emptyState = itemsList.querySelector('.empty-state');
+            if (emptyState) {
+              emptyState.remove();
+            }
+            
+            const item = createItemElement(data, docRef.id);
+            itemsList.appendChild(item);
+            updateCategoryCount(categoryName);
+            
+            // Add to allItems array
+            allItems.push({ id: docRef.id, data: data, element: item });
+          });
         });
-        comp.addEventListener('click', () => {
-          itemsBox.classList.toggle('active');
-        });
+      });
+
+      // Search functionality
+      const searchInput = document.getElementById('searchInput');
+      searchInput.addEventListener('input', (e) => {
+        currentSearch = e.target.value;
+        filterItems();
+      });
+
+      // Clear search on escape
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          searchInput.value = '';
+          currentSearch = '';
+          filterItems();
+        }
       });
     });
   </script>
